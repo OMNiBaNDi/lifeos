@@ -1,5 +1,6 @@
 using LifeOS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using LifeOS.Domain.Habits;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,7 +49,41 @@ app.UseCors("dev");
 // Root endpoint
 app.MapGet("/", () => "LifeOS API running");
 
+app.MapGet("/habits", async (LifeOSDbContext dbContext) =>
+{
+    var habits = await dbContext.Habits
+        .OrderBy(h => h.Name)
+        .Select(h => new
+        {
+            h.Id,
+            h.Name,
+            h.Description,
+            h.CreatedAtUtc
+        })
+        .ToListAsync();
+
+    return Results.Ok(habits);
+});
+
+app.MapPost("/habits", async (HabitCreateRequest request, LifeOSDbContext dbContext) =>
+{
+    var habit = new Habit(request.Name, request.Description);
+
+    dbContext.Habits.Add(habit);
+    await dbContext.SaveChangesAsync();
+
+    return Results.Created($"/habits/{habit.Id}", new
+    {
+        habit.Id,
+        habit.Name,
+        habit.Description,
+        habit.CreatedAtUtc
+    });
+});
+
 // Map controllers
 app.MapControllers();
 
 app.Run();
+
+public record HabitCreateRequest(string Name, string? Description);

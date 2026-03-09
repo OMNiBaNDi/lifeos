@@ -1,6 +1,14 @@
+import { useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
 import BackendStatus from "../components/BackendStatus";
 import PlayerCard from "../components/PlayerCard";
+
+type Habit = {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAtUtc: string;
+};
 
 function Panel({
   title,
@@ -34,6 +42,35 @@ function Panel({
 }
 
 export default function Dashboard() {
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [loadingHabits, setLoadingHabits] = useState(true);
+  const [habitsError, setHabitsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchHabits = async () => {
+      try {
+        setLoadingHabits(true);
+        setHabitsError(null);
+
+        const response = await fetch("http://localhost:5069/habits");
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch habits: ${response.status}`);
+        }
+
+        const data: Habit[] = await response.json();
+        setHabits(data);
+      } catch (error) {
+        console.error("Error fetching habits:", error);
+        setHabitsError("Could not load daily quests.");
+      } finally {
+        setLoadingHabits(false);
+      }
+    };
+
+    fetchHabits();
+  }, []);
+
   return (
     <AppShell
       title="Awakening Chamber"
@@ -53,12 +90,23 @@ export default function Dashboard() {
           <BackendStatus />
 
           <Panel title="Daily Quests">
-            <div style={{ color: "rgba(255,255,255,0.65)", lineHeight: 1.7 }}>
-              <div>• Cardio</div>
-              <div>• Mobility</div>
-              <div>• Coding</div>
-              <div>• Reading</div>
-            </div>
+            {loadingHabits ? (
+              <div style={{ color: "rgba(255,255,255,0.65)" }}>
+                Loading quests...
+              </div>
+            ) : habitsError ? (
+              <div style={{ color: "#ff8a8a" }}>{habitsError}</div>
+            ) : habits.length === 0 ? (
+              <div style={{ color: "rgba(255,255,255,0.65)" }}>
+                No habits found.
+              </div>
+            ) : (
+              <div style={{ color: "rgba(255,255,255,0.65)", lineHeight: 1.7 }}>
+                {habits.map((habit) => (
+                  <div key={habit.id}>• {habit.name}</div>
+                ))}
+              </div>
+            )}
           </Panel>
 
           <Panel title="System Notice">
